@@ -1,0 +1,1 @@
+if (typeof pluso != "undefined") pluso.setCounter("0", "https://api-2d3d-cad.com/opencv-android/", undefined, undefined, undefined);

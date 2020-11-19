@@ -5,9 +5,15 @@ import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.WindowManager;
+
 import org.opencv.android.*;
 import org.opencv.android.CameraBridgeViewBase.CvCameraViewListener;
-import org.opencv.core.*;
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfRect;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 
@@ -22,48 +28,6 @@ public class MainActivity extends Activity
     private CascadeClassifier cascadeClassifier;
     private Mat grayscaleImage;
     private int absoluteFaceSize;
-
-    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
-        @Override
-        public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS:
-                    initializeOpenCVDependencies();
-                    break;
-                default:
-                    super.onManagerConnected(status);
-                    break;
-            }
-        }
-    };
-
-    private void initializeOpenCVDependencies() {
-
-        try {
-            // Copy the resource into a temp file so OpenCV can load it
-            InputStream is = getResources().openRawResource(R.raw.lbpcascade_frontalface);
-            File cascadeDir = getDir("cascade", Context.MODE_PRIVATE);
-            File mCascadeFile = new File(cascadeDir, "lbpcascade_frontalface.xml");
-            FileOutputStream os = new FileOutputStream(mCascadeFile);
-
-
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
-            }
-            is.close();
-            os.close();
-
-            // Load the cascade classifier
-            cascadeClassifier = new CascadeClassifier(mCascadeFile.getAbsolutePath());
-        } catch (Exception e) {
-            Log.e("OpenCVActivity", "Error loading cascade", e);
-        }
-
-        // And we are ready to go
-        openCvCameraView.enableView();
-    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -104,10 +68,10 @@ public class MainActivity extends Activity
 
         // If there are any faces found, draw a rectangle around it
         Rect[] facesArray = faces.toArray();
-        for (int i = 0; i <facesArray.length; i++)
-            Imgproc.rectangle(aInputFrame, facesArray[i].tl(), facesArray[i].br(), new Scalar(0, 255, 0, 255), 3);
 
-        Imgproc.circle(aInputFrame, new Point(10, 50), 50, new Scalar(255, 0,0));
+        for (Rect face : facesArray) {
+            Imgproc.rectangle(aInputFrame, face.tl(), face.br(), new Scalar(0, 255, 0, 255), 3);
+        }
 
         return aInputFrame;
     }
@@ -117,4 +81,45 @@ public class MainActivity extends Activity
         super.onResume();
         OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_4_0, this, mLoaderCallback);
     }
+
+    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
+        @Override
+        public void onManagerConnected(int status) {
+            if (status == LoaderCallbackInterface.SUCCESS) {
+                initializeOpenCVDependencies();
+            } else {
+                super.onManagerConnected(status);
+            }
+        }
+
+        private void initializeOpenCVDependencies() {
+
+            File cascadeDir = getDir("cascade", Context.MODE_PRIVATE);
+            File mCascadeFile = new File(cascadeDir, "lbpcascade_frontalface.xml");
+
+            try (FileOutputStream os = new FileOutputStream(mCascadeFile)) {
+                // Copy the resource into a temp file so OpenCV can load it
+                InputStream is = getResources().openRawResource(R.raw.lbpcascade_frontalface);//лицо анфас
+                //InputStream is = getResources().openRawResource(R.raw.lbpcascade_frontalcatface);
+                //InputStream is = getResources().openRawResource(R.raw.lbpcascade_profileface);//лицо профиль
+                //InputStream is = getResources().openRawResource(R.raw.lbpcascade_silverware);//
+                //InputStream is = getResources().openRawResource(R.raw.haarcascade_eye);//
+
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = is.read(buffer)) != -1) {
+                    os.write(buffer, 0, bytesRead);
+                }
+                is.close();
+
+                // Load the cascade classifier
+                cascadeClassifier = new CascadeClassifier(mCascadeFile.getAbsolutePath());
+            } catch (Exception e) {
+                Log.e("OpenCVActivity", "Error loading cascade", e);
+            }
+
+            // And we are ready to go
+            openCvCameraView.enableView();
+        }
+    };
 }
